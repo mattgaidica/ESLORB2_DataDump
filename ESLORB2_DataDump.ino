@@ -1,6 +1,7 @@
 /*
   ESLORB2 Data Dump Utility
   by Matt Gaidica
+  [ ] add interrupt to D7 (CARD_DETECT)
 */
 
 #include <SPI.h>
@@ -15,6 +16,7 @@ const int ESLO_BTN = 10;
 int fadeValue = 0;
 
 bool doESLO = false;
+bool fadeDir = true;
 
 void setup() {
   pinMode(ESLO_RESET, OUTPUT); // active LOW
@@ -117,29 +119,23 @@ void loop() {
     doESLO = false;
     readESLO(); // resets doESLO to false
   }
+
   
-  digitalWrite(ESLO_LED_R, HIGH);
-  delay(50);
-  digitalWrite(ESLO_LED_R, LOW);
-  delay(50);
+  analogWrite(ESLO_LED_R, fadeValue);
+  if (fadeValue == 0x2F) {
+    fadeDir = false;
+  }
+  if (fadeValue == 0x00) {
+    fadeDir = true;
+  }
+  if (fadeDir) {
+    ++fadeValue;
+  } else {
+    --fadeValue;
+  }
   
-  
-//  // make a string for assembling the data to log:
-//  String dataString = "";
-//
-//  // open the file. note that only one file can be open at a time,
-//  // so you have to close this one before opening another.
-//  File dataFile = SD.open("datalog.txt", FILE_WRITE);
-//
-//  // if the file is available, write to it:
-//  if (dataFile) {
-//    dataFile.println(dataString);
-//    dataFile.close();
-//    // print to the serial port too:
-//    Serial.println(dataString);
-//  }
-//  // if the file isn't open, pop up an error:
-//  else {
-//    Serial.println("error opening datalog.txt");
-//  }
+//  digitalWrite(ESLO_LED_R, HIGH);
+  delay(20);
+//  digitalWrite(ESLO_LED_R, LOW);
+//  delay(50);
 }
