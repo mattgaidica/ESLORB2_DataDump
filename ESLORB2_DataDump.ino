@@ -13,10 +13,12 @@ const int ESLO_DEBUG = 5;
 const int ESLO_LED_R = 13;
 const int ESLO_LED_G = 8;
 const int ESLO_BTN = 10;
+const int CARD_DETECT = 7;
 int fadeValue = 0;
 
 bool doESLO = false;
 bool fadeDir = true;
+bool sdIn = false;
 
 void setup() {
   pinMode(ESLO_RESET, OUTPUT); // active LOW
@@ -24,10 +26,11 @@ void setup() {
   pinMode(ESLO_LED_R, OUTPUT);
   pinMode(ESLO_LED_G, OUTPUT);
   pinMode(ESLO_BTN, INPUT_PULLUP); // active LOW
+  pinMode(CARD_DETECT, INPUT_PULLUP); // active LOW
 
   digitalWrite(ESLO_RESET, HIGH);
   digitalWrite(ESLO_DEBUG, HIGH);
-  digitalWrite(ESLO_LED_R, LOW);
+  analogWrite(ESLO_LED_R, 0);
   digitalWrite(ESLO_LED_G, LOW);
   
   // Open serial communications and wait for port to open:
@@ -35,30 +38,33 @@ void setup() {
   Serial1.begin(115200);
   // do not wait, computer is optional
 //  while (!Serial) {
-//    ; // wait for serial port to connect. Needed for native USB port only
 //  }
 
   Serial.print("Initializing SD card...");
-
-  // see if the card is present and can be initialized:
-  if (!SD.begin(ESLO_SD_CS)) {
-    Serial.println("Card failed, or not present");
-    // don't do anything more:
-    while (1);
-  }
-  Serial.println("card initialized.");
-
-//  attachInterrupt(digitalPinToInterrupt(ESLO_BTN), btnPressed, FALLING);
+  initSD();
 }
 
-void btnPressed() {
-  detachInterrupt(digitalPinToInterrupt(ESLO_BTN));
-  Serial.println("BTN!");
-  doESLO = true;
+bool initSD() {
+  delay(100); // debounce
+  while(digitalRead(CARD_DETECT) == LOW) {
+    analogWrite(ESLO_LED_R, 0);
+    digitalWrite(ESLO_LED_G, HIGH);
+    delay(100);
+    analogWrite(ESLO_LED_R, 255);
+    digitalWrite(ESLO_LED_G, LOW);
+    delay(100);
+  }
+  delay(100);
+  if (!SD.begin(ESLO_SD_CS)) {
+    Serial.println("Card failed, or not present");
+    return false;
+  }
+  Serial.println("card initialized.");
+  return true;
 }
 
 void readESLO() {
-  digitalWrite(ESLO_LED_R, HIGH);
+  analogWrite(ESLO_LED_R, 255);
   digitalWrite(ESLO_LED_G, LOW); // keep LOW until incoming serial data
   Serial.println("Opening file...");
   String filename = "ESLORB2.txt";
@@ -95,7 +101,7 @@ void readESLO() {
     Serial.println("Error opening data file.");
   }
   digitalWrite(ESLO_DEBUG, HIGH);
-  digitalWrite(ESLO_LED_R, LOW);
+  analogWrite(ESLO_LED_R, 0);
   digitalWrite(ESLO_LED_G, LOW);
   delay(1000); // debounce quick transfers
 //  attachInterrupt(digitalPinToInterrupt(ESLO_BTN), btnPressed, FALLING);
@@ -110,6 +116,10 @@ void toggleReset() {
 
 
 void loop() {
+  while(sdIn == false || digitalRead(CARD_DETECT) == LOW) {
+    sdIn = initSD();
+  }
+  
   // interrupt is being finnicky, just poll
   if(digitalRead(ESLO_BTN) == LOW) {
     doESLO = true;
@@ -120,7 +130,6 @@ void loop() {
     readESLO(); // resets doESLO to false
   }
 
-  
   analogWrite(ESLO_LED_R, fadeValue);
   if (fadeValue == 0x2F) {
     fadeDir = false;
@@ -134,8 +143,5 @@ void loop() {
     --fadeValue;
   }
   
-//  digitalWrite(ESLO_LED_R, HIGH);
   delay(20);
-//  digitalWrite(ESLO_LED_R, LOW);
-//  delay(50);
 }
